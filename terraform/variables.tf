@@ -10,8 +10,3 @@ variable "mapswipe_uptime_alerts_webhook" {
   type      = string
   sensitive = true
 }
-
-variable "mapswipe_uptime_external_alerts_webhook" {
-  type      = string
-  sensitive = true
-}

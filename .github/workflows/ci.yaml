@@ -1,0 +1,171 @@
+name: Terragrunt CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+env:
+  # Uptimerobot
+  UPTIMEROBOT_API_KEY: ${{ secrets.UPTIMEROBOT_API_KEY }}
+  # Integration
+  MAPSWIPE_UPTIME_ALERTS_WEBHOOK: ${{ secrets.MAPSWIPE_UPTIME_ALERTS_WEBHOOK }}
+
+jobs:
+  pre_commit_check:
+    name: Pre-Commit check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Terragrunt and OpenTofu
+        uses: gruntwork-io/terragrunt-action@v3
+
+      - name: Install TFLint
+        run: |
+          curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
+          echo "$HOME/.tflint.d/bin" >> $GITHUB_PATH
+
+      # 3. Run pre-commit hooks with built-in caching
+      - uses: pre-commit/action@v3.0.1
+
+  terragrunt-plan:
+    name: 'terragrunt-plan'
+    runs-on: ubuntu-latest
+    needs: pre_commit_check
+    if: github.event_name == 'pull_request'
+
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Terragrunt and OpenTofu
+      uses: gruntwork-io/terragrunt-action@v3
+
+    - name: Render tfvars file
+      working-directory: terraform/
+      run: |
+        envsubst < secrets.template.tfvars.tmpl > terraform.auto.tfvars
+        echo "Generated tfvars:"
+
+    - name: Terragrunt Init
+      working-directory: terraform/
+      id: init
+      run: terragrunt init
+      continue-on-error: true
+
+    - name: Terragrunt Plan
+      if: steps.init.outcome == 'success'
+      working-directory: terraform/
+      id: plan
+      run: |
+        set +e
+
+        terragrunt plan -out=tfplan -no-color -input=false \
+          > plan.txt 2>&1
+
+        PLAN_EXIT_CODE=$?
+
+        echo "PLAN<<EOF" >> $GITHUB_OUTPUT
+
+        if [ $PLAN_EXIT_CODE -eq 0 ]; then
+          # Replace raw output with formatted plan
+          terragrunt show -no-color tfplan >> plan.txt
+          cat plan.txt >> $GITHUB_OUTPUT
+        else
+          # Show the error output captured in plan.txt
+          cat plan.txt >> $GITHUB_OUTPUT
+        fi
+
+        echo "EOF" >> $GITHUB_OUTPUT
+
+        exit $PLAN_EXIT_CODE
+      continue-on-error: true
+
+    - name: Add Plan Comment
+      uses: actions/github-script@v7
+      env:
+        INIT_OUTCOME: ${{ steps.init.outcome }}
+        PLAN_OUTCOME: ${{ steps.plan.outcome }}
+        PLAN_OUTPUT: ${{ steps.plan.outputs.PLAN }}
+        GITHUB_ACTOR: ${{ github.actor }}
+        EVENT_NAME: ${{ github.event_name}}
+        GITHUB_WORKFLOW: ${{ github.workflow }}
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          // unique identifier to reliably find the comment
+          const BOT_ID = '<!--terra-bot-->';
+
+          // 1. Retrieve existing bot comments for the PR
+          const { data: comments } = await github.rest.issues.listComments({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+          })
+
+          // Search for the comment using the unique ID instead of fragile text
+          const botComment = comments.find(comment => {
+            return comment.user.type === 'Bot' && comment.body.includes(BOT_ID)
+          })
+
+          // 2. Prepare format of the comment
+          // Use step outcomes (success/failure) in the main header for clarity
+          const output = `#### Terragrunt Initialization ⚙️\`${ process.env.INIT_OUTCOME }\`
+          #### Terragrunt Plan 📖\`${ process.env.PLAN_OUTCOME }\`
+
+          <details><summary>Show Plan</summary>
+
+          \`\`\`\n
+          ${process.env.PLAN_OUTPUT}
+          \`\`\`
+
+          </details>
+
+          *Pusher: @${ process.env.GITHUB_ACTOR }, Action: \`${ process.env.EVENT_NAME }\`, Workflow: \`${ process.env.GITHUB_WORKFLOW }\`*
+          ${BOT_ID}`; // <-- Append the unique ID to the output
+
+          // 3. If we have a comment, update it, otherwise create a new one
+          if (botComment) {
+            github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: botComment.id,
+              body: output
+            })
+          } else {
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })
+          }
+
+
+  terragrunt-apply:
+    name: Terragrunt Apply
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Terragrunt and OpenTofu
+        uses: gruntwork-io/terragrunt-action@v3
+
+      - name: Render tfvars file
+        working-directory: terraform/
+        run: envsubst < secrets.template.tfvars.tmpl > terraform.auto.tfvars
+
+      - name: Terragrunt Init
+        working-directory: terraform/
+        run: terragrunt init
+
+      - name: Terragrunt Apply
+        working-directory: terraform/
+        run: terragrunt apply -auto-approve -input=false -no-color
