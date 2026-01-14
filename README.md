@@ -1,5 +1,38 @@
 # Mapswipe Uptime
 
+## Creating Uptime Monitors
+- Use existing monitors from `terraform/monitors.tf` file as example
+- Edit as needed and save it
+
+### Example
+Please follow this example
+```tf
+# MapSwipe Website
+module "monitor_mapswipe_website" {
+  source = "./modules/http_monitor"
+
+  name = "MapSwipe Website - Prod"
+  url  = "https://mapswipe.org"
+  tags = [
+    "mapswipe",
+    "prod",
+  ]
+  assigned_alert_contacts = [
+    uptimerobot_integration.mapswipe_uptime_alerts.id,
+  ]
+}
+```
+
+**Guidelines:**
+- Add a comment to separate out the application blocks
+- Rename module to match: `monitor_{platform}`
+- Update name and URL
+    - Name must end with `Prod` or `Staging`
+- Tags should include project and environment
+    - Make sure to use `prod` and `staging` to specify environments
+- `assigned_alert_contacts` must include:
+    - 1 Slack channel
+
 ## CI Setup
 
 ### Init (Service Account)
