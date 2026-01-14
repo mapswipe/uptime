@@ -14,6 +14,27 @@ terraform {
 EOF
 }
 
+remote_state {
+  backend = "gcs"
+
+  generate = {
+    path      = "backend.tf"
+    if_exists = "overwrite"
+  }
+
+  config = {
+    project  = "msf-mapswipe"
+    location = "eu"
+    bucket   = "mapswipe-uptime-tf-prod"
+    prefix   = "${path_relative_to_include()}/tofu.tfstate"
+
+    gcs_bucket_labels = {
+      owner = "terragrunt"
+      name  = "tf_state_storage"
+    }
+  }
+}
+
 # TODO: Check if we automate this to each module?
 generate "provider" {
   path      = "provider.tf"
