@@ -1,0 +1,30 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-case-conflict
+      - id: detect-private-key
+
+  # TODO: Check if terragrunt init is run?
+  - repo: https://github.com/gruntwork-io/pre-commit
+    rev: "v0.1.30"  # Check for latest: https://github.com/gruntwork-io/pre-commit/releases
+    hooks:
+      - id: tofu-fmt
+      - id: tofu-validate
+      - id: tflint
+        pass_filenames: false
+        always_run: true
+      - id: terragrunt-hcl-fmt
+
+  - repo: https://github.com/antonbabenko/pre-commit-terraform
+    rev: "v1.98.0"
+    hooks:
+      - id: terraform_providers_lock
+        args:
+          - --hook-config=--mode=regenerate-lockfile-if-some-platform-missed
+          - --hook-config=--tf-path=tofu
+          - --args=-platform=darwin_amd64
+          - --args=-platform=linux_amd64
