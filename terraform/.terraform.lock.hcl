@@ -6,6 +6,7 @@ provider "registry.opentofu.org/uptimerobot/uptimerobot" {
   constraints = "~> 1.3.9"
   hashes = [
     "h1:XsCoACIlheJ4Kqa4KeCbxdxtmJeH9El008yEVMaNp/U=",
+    "h1:o031cHi6GLIz3Y4EkxRPl8YZB6aICiaBA4mSFAnatGA=",
     "h1:plNfrpSnq8Di7fTHE7Q8tkMdGLGds6dOEGIolwk5d+M=",
     "zh:291117f52005e6a76eb349bf168213ec2581150f5c4f25675c087790ee6340d9",
     "zh:662d943299d59c21197a1e4449d64fb78ecb6cb71b0fe91db2aaf058d14a0e45",
