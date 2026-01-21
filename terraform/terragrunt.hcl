@@ -1,5 +1,6 @@
 # Generate provider configuration AND required_providers block
 locals {
+  # https://registry.terraform.io/providers/uptimerobot/uptimerobot/
   uptimerobot_provider_contents = <<EOF
 terraform {
   required_version = ">= 1.11.0"
