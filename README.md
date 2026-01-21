@@ -1,4 +1,4 @@
-# Mapswipe Uptime
+# MapSwipe Uptime
 
 ## Creating Uptime Monitors
 - Use existing monitors from `terraform/monitors.tf` file as example
