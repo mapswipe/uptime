@@ -1,5 +1,6 @@
 resource "uptimerobot_psp" "global" {
-  name = "MapSwipe - Uptime"
+  name          = "MapSwipe - Uptime"
+  custom_domain = "status.mapswipe.org"
 
   custom_settings = {
     page = {
